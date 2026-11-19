@@ -2,7 +2,7 @@ import os
 import re
 import time
 from urllib.parse import quote_plus
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 import requests
 from bs4 import BeautifulSoup
 from src.models import Lead, LocationInput
