@@ -21,6 +21,7 @@ class Lead:
     review_count: Optional[int] = None
     snippet: Optional[str] = None
     custom_hook: Optional[str] = None
+    message_id: Optional[str] = None
 
 CITY_TYPO_MAP = {
     "montrial": "Montreal",

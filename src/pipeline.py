@@ -116,7 +116,8 @@ class LeadAcquisitionPipeline:
                 if success:
                     lead.email_content = email_content
                     lead.status = "SENT"
-                    self.db.record_lead_contacted(lead, email_content, status="SENT")
+                    msg_id = getattr(lead, "message_id", None) or getattr(self.emailer, "last_message_id", None)
+                    self.db.record_lead_contacted(lead, email_content, status="SENT", message_id=msg_id)
                     metrics.total_emails_sent += 1
                     loc_emails_sent += 1
                 else:
@@ -215,8 +216,17 @@ class LeadAcquisitionPipeline:
                 email=record.get("email"),
                 source=record.get("source", "Outreach")
             )
+            original_content = record.get("email_content")
+            contacted_at = record.get("contacted_at")
+            original_msg_id = record.get("message_id") or getattr(lead, "message_id", None) or f"<{lead.email}.initial@mail.com>"
+
             print(f"   🚀 [{name}] Dispatching follow-up email to {lead.email}...")
-            success, msg, _ = self.emailer.send_followup(lead)
+            success, msg, _ = self.emailer.send_followup(
+                lead,
+                original_msg_id=original_msg_id,
+                original_content=original_content,
+                contacted_date=contacted_at
+            )
             if success:
                 self.db.mark_followup_sent(lead.email)
                 sent_count += 1

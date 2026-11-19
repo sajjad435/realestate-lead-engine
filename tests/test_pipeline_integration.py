@@ -71,6 +71,6 @@ def test_full_pipeline_end_to_end_execution(integration_env):
     # Detroit leads were already contacted in run 1, so they must be detected as duplicates
     assert second_metrics.total_duplicates_skipped > 0
 
-    # 7. Test Automated Follow-up Trigger
-    followups_sent = pipeline.run_followups(days_threshold=0)
+    # 7. Test Automated Follow-up Trigger (bypassing business hours in test environment)
+    followups_sent = pipeline.run_followups(days_threshold=0, enforce_business_hours=False)
     assert followups_sent > 0

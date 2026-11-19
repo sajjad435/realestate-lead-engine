@@ -220,17 +220,35 @@ Portfolio: {portfolio_url}
         return subject, body
 
     @classmethod
-    def render_followup(cls, lead: Lead, sender_name: str = "Hamzha", portfolio_url: str = "https://hamzha.dev") -> Tuple[str, str]:
+    def render_followup(
+        cls,
+        lead: Lead,
+        sender_name: str = "Hamzha",
+        portfolio_url: str = "https://hamzha.dev",
+        original_content: Optional[str] = None,
+        contacted_date: Optional[str] = None
+    ) -> Tuple[str, str]:
         salutation_name = cls.extract_salutation_name(lead)
         city_display = lead.city or (lead.state if lead.state else "your area")
 
-        if salutation_name:
-            greeting = f"Hi {salutation_name},"
+        orig_subject = None
+        orig_body = None
+        if original_content:
+            if original_content.startswith("Subject:"):
+                parts = original_content.split("\n", 2)
+                orig_subject = parts[0].replace("Subject:", "").strip()
+                orig_body = parts[2].strip() if len(parts) > 2 else ""
+            else:
+                orig_body = original_content.strip()
+
+        if orig_subject:
+            subject = orig_subject if orig_subject.startswith("Re: ") else f"Re: {orig_subject}"
+        elif salutation_name:
             subject = f"Re: Quick question regarding {city_display} real estate listings - {salutation_name}"
         else:
-            greeting = "Hi there,"
             subject = f"Re: Quick question regarding {city_display} real estate listings"
 
+        greeting = f"Hi {salutation_name}," if salutation_name else "Hi there,"
         preview_url = lead.website_preview_url or portfolio_url
         body = cls.FOLLOWUP_BODY.format(
             greeting=greeting,
@@ -239,6 +257,13 @@ Portfolio: {portfolio_url}
             portfolio_url=portfolio_url,
             sender_name=sender_name
         )
+
+        # Append threaded quoted history of original message
+        if orig_body:
+            date_display = contacted_date[:10] if contacted_date else "our previous conversation"
+            quoted_lines = "\n".join(f"> {line}" if line.strip() else ">" for line in orig_body.splitlines())
+            body = f"{body}\n\n--------------------------------------------------\nOn {date_display}, {sender_name} wrote:\n{quoted_lines}"
+
         subject = AntiSpamSanitizer.clean(subject)
         body = AntiSpamSanitizer.clean(body)
         return subject, body
@@ -299,7 +324,10 @@ class ColdEmailer:
         msg["Subject"] = subject
         msg["Date"] = email.utils.formatdate(localtime=True)
         domain = self.sender_email.split("@")[1] if (self.sender_email and "@" in self.sender_email) else "gmail.com"
-        msg["Message-ID"] = email.utils.make_msgid(domain=domain)
+        msg_id = getattr(lead, "message_id", None) or email.utils.make_msgid(domain=domain)
+        lead.message_id = msg_id
+        self.last_message_id = msg_id
+        msg["Message-ID"] = msg_id
         if self.sender_email:
             msg["Reply-To"] = self.sender_email
         return msg
@@ -318,6 +346,12 @@ class ColdEmailer:
         )
 
         full_content = f"Subject: {subject}\n\n{body}"
+
+        # Ensure message_id is generated even in dry-run mode for record keeping
+        domain = self.sender_email.split("@")[1] if (self.sender_email and "@" in self.sender_email) else "gmail.com"
+        msg_id = getattr(lead, "message_id", None) or email.utils.make_msgid(domain=domain)
+        lead.message_id = msg_id
+        self.last_message_id = msg_id
 
         if self.dry_run:
             self.sent_count_today += 1
@@ -344,11 +378,19 @@ class ColdEmailer:
         except Exception as e:
             return False, f"SMTP Error sending to {lead.email}: {str(e)}", full_content
 
-    def build_followup_mime_message(self, lead: Lead, original_msg_id: Optional[str] = None) -> MIMEText:
+    def build_followup_mime_message(
+        self,
+        lead: Lead,
+        original_msg_id: Optional[str] = None,
+        original_content: Optional[str] = None,
+        contacted_date: Optional[str] = None
+    ) -> MIMEText:
         subject, body = EmailTemplate.render_followup(
             lead=lead,
             sender_name=self.sender_name,
-            portfolio_url=self.portfolio_url
+            portfolio_url=self.portfolio_url,
+            original_content=original_content,
+            contacted_date=contacted_date
         )
         msg = MIMEText(body, "plain", "utf-8")
         msg["From"] = f"{self.sender_name} <{self.sender_email}>"
@@ -360,12 +402,18 @@ class ColdEmailer:
         msg["Reply-To"] = self.sender_email or "info@mail.com"
 
         # Threading RFC headers to nest follow-up directly into the original conversation thread
-        thread_ref = original_msg_id or email.utils.make_msgid(domain="thread.ref")
+        thread_ref = original_msg_id or getattr(lead, "message_id", None) or email.utils.make_msgid(domain="thread.ref")
         msg["In-Reply-To"] = thread_ref
         msg["References"] = thread_ref
         return msg
 
-    def send_followup(self, lead: Lead, original_msg_id: Optional[str] = None) -> Tuple[bool, str, str]:
+    def send_followup(
+        self,
+        lead: Lead,
+        original_msg_id: Optional[str] = None,
+        original_content: Optional[str] = None,
+        contacted_date: Optional[str] = None
+    ) -> Tuple[bool, str, str]:
         if not lead.email:
             return False, "Lead has no email address", ""
 
@@ -375,7 +423,9 @@ class ColdEmailer:
         subject, body = EmailTemplate.render_followup(
             lead=lead,
             sender_name=self.sender_name,
-            portfolio_url=self.portfolio_url
+            portfolio_url=self.portfolio_url,
+            original_content=original_content,
+            contacted_date=contacted_date
         )
         full_content = f"Subject: {subject}\n\n{body}"
 
@@ -388,7 +438,12 @@ class ColdEmailer:
             return False, "SMTP credentials not provided", full_content
 
         try:
-            msg = self.build_followup_mime_message(lead, original_msg_id=original_msg_id)
+            msg = self.build_followup_mime_message(
+                lead=lead,
+                original_msg_id=original_msg_id,
+                original_content=original_content,
+                contacted_date=contacted_date
+            )
 
             with smtplib.SMTP(self.smtp_host, self.smtp_port) as server:
                 server.starttls()

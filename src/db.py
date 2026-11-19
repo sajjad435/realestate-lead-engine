@@ -34,11 +34,13 @@ class LeadTrackerDB:
                     followup_status TEXT DEFAULT 'PENDING'
                 )
             """)
-            # Check if profile_url column exists for existing DB
+            # Check if profile_url or message_id column exists for existing DB
             cursor.execute("PRAGMA table_info(contacted_leads)")
             cols = [info[1] for info in cursor.fetchall()]
             if "profile_url" not in cols:
                 cursor.execute("ALTER TABLE contacted_leads ADD COLUMN profile_url TEXT")
+            if "message_id" not in cols:
+                cursor.execute("ALTER TABLE contacted_leads ADD COLUMN message_id TEXT")
             conn.commit()
 
     def is_already_contacted(self, email: str) -> bool:
@@ -50,20 +52,21 @@ class LeadTrackerDB:
             cursor.execute("SELECT 1 FROM contacted_leads WHERE LOWER(email) = ?", (clean_email,))
             return cursor.fetchone() is not None
 
-    def record_lead_contacted(self, lead: Lead, email_content: str, status: str = "SENT"):
+    def record_lead_contacted(self, lead: Lead, email_content: str, status: str = "SENT", message_id: Optional[str] = None):
         clean_email = lead.email.strip().lower() if lead.email else ""
         if not clean_email:
             return
 
         now = datetime.datetime.now(datetime.timezone.utc)
         followup_due = now + datetime.timedelta(days=3)
+        msg_id = message_id or getattr(lead, "message_id", None) or ""
 
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("""
                 INSERT OR REPLACE INTO contacted_leads 
-                (email, name, city, state, source, website, phone, profile_url, status, email_content, contacted_at, followup_due_date, followup_status)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING')
+                (email, name, city, state, source, website, phone, profile_url, status, email_content, contacted_at, followup_due_date, followup_status, message_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', ?)
             """, (
                 clean_email,
                 lead.name,
@@ -76,7 +79,8 @@ class LeadTrackerDB:
                 status,
                 email_content,
                 now.isoformat(),
-                followup_due.isoformat()
+                followup_due.isoformat(),
+                msg_id
             ))
             conn.commit()
 
@@ -84,7 +88,7 @@ class LeadTrackerDB:
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("""
-                SELECT email, name, city, state, source, website, phone, profile_url, status, email_content, contacted_at, followup_due_date, followup_status
+                SELECT email, name, city, state, source, website, phone, profile_url, status, email_content, contacted_at, followup_due_date, followup_status, message_id
                 FROM contacted_leads
                 ORDER BY contacted_at DESC
                 LIMIT ?
@@ -97,7 +101,7 @@ class LeadTrackerDB:
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("""
-                SELECT email, name, city, state, source, status, email_content, contacted_at, followup_due_date, followup_status
+                SELECT email, name, city, state, source, status, email_content, contacted_at, followup_due_date, followup_status, message_id
                 FROM contacted_leads
                 WHERE followup_status = 'PENDING'
                 AND contacted_at <= ?
