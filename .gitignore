@@ -1,0 +1,24 @@
+# Environment secrets & credentials (NEVER commit to git)
+.env
+*.env.local
+
+# Virtual Environment
+.venv/
+env/
+venv/
+ENV/
+
+# Python cache & tests
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Playwright binaries
+.local-browsers/
+
+# OS metadata
+.DS_Store
+Thumbs.db
