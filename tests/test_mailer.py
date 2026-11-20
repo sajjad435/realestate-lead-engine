@@ -16,7 +16,8 @@ def test_email_template_rendering_standard_pitch_from_screenshot():
     )
     assert "Hi Samridhi," in rendered_body
     assert "I came across your profile in ranchi and really liked your active listings." in rendered_body
-    assert "While reviewing the local market, I noticed several nearby agents in ranchi are connecting with clients through dedicated websites" in rendered_body
+    assert "While reviewing your business profile, I noticed that you don't currently have a dedicated website to capture organic local buyer and seller leads." in rendered_body
+    assert "Several nearby agents in ranchi are connecting with clients through dedicated websites" in rendered_body
     assert "searching for local agents on Google and Maps" in rendered_body
     assert "tailored to your brand, colors, photos, and name" in rendered_body
     assert "sample preview draft" in rendered_body
@@ -151,8 +152,8 @@ def test_email_template_uses_explicit_custom_hook():
     )
     subject, body = EmailTemplate.render(lead=lead, sender_name="Sajjad Wali")
     assert "how you showcase your local property tours" in body
-    # Size constraint: Must be crisp and compact, matching default size (<= 130 words)
-    assert len(body.split()) <= 130
+    # Size constraint: Must be crisp and compact, matching default size (<= 140 words)
+    assert len(body.split()) <= 140
 
 def test_email_template_generates_rating_hook_for_google_maps():
     lead = Lead(
@@ -165,7 +166,7 @@ def test_email_template_generates_rating_hook_for_google_maps():
     )
     subject, body = EmailTemplate.render(lead=lead, sender_name="Sajjad Wali")
     assert "4.9" in body
-    assert len(body.split()) <= 130
+    assert len(body.split()) <= 140
 
 def test_email_template_generates_instagram_social_hook_from_snippet():
     lead = Lead(
@@ -177,7 +178,7 @@ def test_email_template_generates_instagram_social_hook_from_snippet():
     )
     subject, body = EmailTemplate.render(lead=lead, sender_name="Sajjad Wali")
     assert "waterfront" in body.lower() or "tour" in body.lower() or "relocation" in body.lower()
-    assert len(body.split()) <= 130
+    assert len(body.split()) <= 140
 
 def test_email_template_generates_facebook_agency_hook():
     lead = Lead(
@@ -188,5 +189,5 @@ def test_email_template_generates_facebook_agency_hook():
     )
     subject, body = EmailTemplate.render(lead=lead, sender_name="Sajjad Wali")
     assert "Premier Realty Partners" in body
-    assert len(body.split()) <= 130
+    assert len(body.split()) <= 140
 

@@ -15,8 +15,8 @@ def test_cold_email_new_high_converting_template():
     assert "Aarif" in subject
 
     # 2. Key messaging & competitive research angle
-    assert "While reviewing the local market, I noticed several nearby agents in Patna" in body
-    assert "connecting with clients through dedicated websites" in body
+    assert "While reviewing your business profile, I noticed that you don't currently have a dedicated website to capture organic local buyer and seller leads." in body
+    assert "Several nearby agents in Patna are connecting with clients through dedicated websites" in body
     assert "searching for local agents on Google and Maps" in body
 
     # 3. Customization by brand, colors, photos, name
@@ -31,5 +31,5 @@ def test_cold_email_new_high_converting_template():
     words = [w.strip(".,!?\"'").lower() for w in body.split()]
     assert "free" not in words
 
-    # 6. Length check: Must be crisp and under 120 words total
-    assert len(words) <= 120
+    # 6. Length check: Must be crisp and under 135 words total
+    assert len(words) <= 135

@@ -40,7 +40,7 @@ Portfolio: {portfolio_url}
 
 {hook}
 
-While reviewing the local market, I noticed several nearby agents in {city} are connecting with clients through dedicated websites—and without one, you might be missing out on buyers and sellers searching for local agents on Google and Maps.
+While reviewing your business profile, I noticed that you don't currently have a dedicated website to capture organic local buyer and seller leads. Several nearby agents in {city} are connecting with clients through dedicated websites—and without one, you might be missing out on buyers and sellers searching for local agents on Google and Maps.
 
 I build custom realtor websites tailored to your brand, colors, photos, and name (sample: {portfolio_url}).
 
