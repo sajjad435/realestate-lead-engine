@@ -193,16 +193,17 @@ class LeadAcquisitionPipeline:
             print("   ℹ️ No leads currently due for follow-up (all leads are either followed up or < 3 days old).")
             return 0
 
-        print(f"\n📬 [Automated Follow-ups] Found {len(due_leads)} leads eligible for Day-3 follow-up:")
+        print(f"\n📬 [Automated Follow-ups] Found {len(due_leads)} leads eligible for scheduled follow-up:")
         for record in due_leads:
             name = record.get("name", "Realtor")
             city = record.get("city", "") or record.get("state", "")
+            target_stage = record.get("target_stage", 1)
 
             # Location-aware timezone check: Ensure follow-up is dispatched only in the agent's local morning (~10:30 AM)
             if enforce_business_hours:
                 in_window, tz_msg = TimezoneHelper.is_in_followup_window(city)
                 if not in_window:
-                    print(f"   ⏳ [{name} | {city}] Follow-up postponed: {tz_msg}")
+                    print(f"   ⏳ [{name} | {city}] Follow-up (Stage {target_stage}) postponed: {tz_msg}")
                     continue
 
             if self.emailer.sent_count_today >= self.emailer.max_daily_emails:
@@ -220,15 +221,16 @@ class LeadAcquisitionPipeline:
             contacted_at = record.get("contacted_at")
             original_msg_id = record.get("message_id") or getattr(lead, "message_id", None) or f"<{lead.email}.initial@mail.com>"
 
-            print(f"   🚀 [{name}] Dispatching follow-up email to {lead.email}...")
+            print(f"   🚀 [{name}] Dispatching clean follow-up email (Stage {target_stage}) to {lead.email}...")
             success, msg, _ = self.emailer.send_followup(
                 lead,
+                stage=target_stage,
                 original_msg_id=original_msg_id,
                 original_content=original_content,
                 contacted_date=contacted_at
             )
             if success:
-                self.db.mark_followup_sent(lead.email)
+                self.db.mark_followup_sent(lead.email, stage=target_stage)
                 sent_count += 1
             else:
                 print(f"   ⚠️ Notice for {lead.email}: {msg}")

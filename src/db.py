@@ -31,16 +31,22 @@ class LeadTrackerDB:
                     email_content TEXT,
                     contacted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     followup_due_date TIMESTAMP,
-                    followup_status TEXT DEFAULT 'PENDING'
+                    followup_status TEXT DEFAULT 'PENDING',
+                    followup_stage INTEGER DEFAULT 0,
+                    last_followup_at TIMESTAMP
                 )
             """)
-            # Check if profile_url or message_id column exists for existing DB
+            # Check if additional columns exist for existing DB
             cursor.execute("PRAGMA table_info(contacted_leads)")
             cols = [info[1] for info in cursor.fetchall()]
             if "profile_url" not in cols:
                 cursor.execute("ALTER TABLE contacted_leads ADD COLUMN profile_url TEXT")
             if "message_id" not in cols:
                 cursor.execute("ALTER TABLE contacted_leads ADD COLUMN message_id TEXT")
+            if "followup_stage" not in cols:
+                cursor.execute("ALTER TABLE contacted_leads ADD COLUMN followup_stage INTEGER DEFAULT 0")
+            if "last_followup_at" not in cols:
+                cursor.execute("ALTER TABLE contacted_leads ADD COLUMN last_followup_at TIMESTAMP")
             conn.commit()
 
     def is_already_contacted(self, email: str) -> bool:
@@ -65,8 +71,8 @@ class LeadTrackerDB:
             cursor = conn.cursor()
             cursor.execute("""
                 INSERT OR REPLACE INTO contacted_leads 
-                (email, name, city, state, source, website, phone, profile_url, status, email_content, contacted_at, followup_due_date, followup_status, message_id)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', ?)
+                (email, name, city, state, source, website, phone, profile_url, status, email_content, contacted_at, followup_due_date, followup_status, message_id, followup_stage, last_followup_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', ?, 0, NULL)
             """, (
                 clean_email,
                 lead.name,
@@ -88,7 +94,8 @@ class LeadTrackerDB:
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("""
-                SELECT email, name, city, state, source, website, phone, profile_url, status, email_content, contacted_at, followup_due_date, followup_status, message_id
+                SELECT email, name, city, state, source, website, phone, profile_url, status, email_content, contacted_at, followup_due_date, followup_status, message_id,
+                       COALESCE(followup_stage, 0) as followup_stage, last_followup_at
                 FROM contacted_leads
                 ORDER BY contacted_at DESC
                 LIMIT ?
@@ -96,30 +103,95 @@ class LeadTrackerDB:
             rows = cursor.fetchall()
             return [dict(row) for row in rows]
 
-    def get_leads_due_for_followup(self, days_threshold: int = 3) -> List[Dict[str, Any]]:
-        cutoff_date = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=days_threshold)
+    def get_leads_due_for_followup(
+        self,
+        days_threshold: Optional[int] = None,
+        stage_1_days: int = 3,
+        stage_2_days: int = 4,
+        stage_3_days: int = 5
+    ) -> List[Dict[str, Any]]:
+        if days_threshold is not None:
+            stage_1_days = days_threshold
+
+        now = datetime.datetime.now(datetime.timezone.utc)
+        cutoff_stage_1 = now - datetime.timedelta(days=stage_1_days)
+        cutoff_stage_2 = now - datetime.timedelta(days=stage_2_days)
+        cutoff_stage_3 = now - datetime.timedelta(days=stage_3_days)
+
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("""
-                SELECT email, name, city, state, source, status, email_content, contacted_at, followup_due_date, followup_status, message_id
+                SELECT email, name, city, state, source, status, email_content, contacted_at, followup_due_date, followup_status, message_id,
+                       COALESCE(followup_stage, 0) as followup_stage, last_followup_at
                 FROM contacted_leads
-                WHERE followup_status = 'PENDING'
-                AND contacted_at <= ?
+                WHERE followup_status NOT IN ('COMPLETED', 'UNSUBSCRIBED', 'RESPONDED')
                 ORDER BY contacted_at ASC
-            """, (cutoff_date.isoformat(),))
+            """)
             rows = cursor.fetchall()
-            return [dict(row) for row in rows]
 
-    def mark_followup_sent(self, email: str):
+            due_leads = []
+            for r in rows:
+                d = dict(r)
+                stage = d.get("followup_stage") or 0
+                status = (d.get("followup_status") or "").upper()
+                last_followup = d.get("last_followup_at")
+                contacted_at = d.get("contacted_at")
+
+                # If stage was 0 or status is PENDING, next target is Stage 1
+                if stage == 0 and status in ("PENDING", "SENT"):
+                    if contacted_at:
+                        try:
+                            dt = datetime.datetime.fromisoformat(contacted_at)
+                            if dt.tzinfo is None or dt.tzinfo.utcoffset(dt) is None:
+                                dt = dt.replace(tzinfo=datetime.timezone.utc)
+                        except Exception:
+                            dt = cutoff_stage_1
+                        if dt <= cutoff_stage_1:
+                            d["target_stage"] = 1
+                            due_leads.append(d)
+                elif stage == 1 or status == "FOLLOWUP_SENT" or status == "FOLLOWUP_1_SENT":
+                    # Stage 2 check
+                    ref_dt_str = last_followup or contacted_at
+                    if ref_dt_str:
+                        try:
+                            dt = datetime.datetime.fromisoformat(ref_dt_str)
+                            if dt.tzinfo is None or dt.tzinfo.utcoffset(dt) is None:
+                                dt = dt.replace(tzinfo=datetime.timezone.utc)
+                        except Exception:
+                            dt = cutoff_stage_2
+                        if dt <= cutoff_stage_2:
+                            d["target_stage"] = 2
+                            due_leads.append(d)
+                elif stage == 2 or status == "FOLLOWUP_2_SENT":
+                    # Stage 3 check
+                    ref_dt_str = last_followup or contacted_at
+                    if ref_dt_str:
+                        try:
+                            dt = datetime.datetime.fromisoformat(ref_dt_str)
+                            if dt.tzinfo is None or dt.tzinfo.utcoffset(dt) is None:
+                                dt = dt.replace(tzinfo=datetime.timezone.utc)
+                        except Exception:
+                            dt = cutoff_stage_3
+                        if dt <= cutoff_stage_3:
+                            d["target_stage"] = 3
+                            due_leads.append(d)
+
+            return due_leads
+
+    def mark_followup_sent(self, email: str, stage: int = 1):
         clean_email = email.strip().lower()
         now = datetime.datetime.now(datetime.timezone.utc)
+        status_label = f"FOLLOWUP_{stage}_SENT" if stage < 3 else "COMPLETED"
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("""
                 UPDATE contacted_leads
-                SET followup_status = 'FOLLOWUP_SENT', followup_due_date = ?
+                SET followup_stage = ?,
+                    followup_status = ?,
+                    last_followup_at = ?,
+                    followup_due_date = ?
                 WHERE LOWER(email) = ?
-            """, (now.isoformat(), clean_email))
+            """, (stage, status_label, now.isoformat(), now.isoformat(), clean_email))
             conn.commit()
 
     def close(self):

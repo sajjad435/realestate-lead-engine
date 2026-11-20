@@ -58,7 +58,7 @@ Web Developer & Real Estate Web Consultant
 Portfolio: {portfolio_url}
 """
 
-    FOLLOWUP_BODY = """{greeting}
+    FOLLOWUP_BODY_STAGE_1 = """{greeting}
 
 Just floating this back to the top of your inbox in case it got buried under your client showings.
 
@@ -72,6 +72,39 @@ Best regards,
 Web Developer & Real Estate Web Consultant
 Portfolio: {portfolio_url}
 """
+
+    FOLLOWUP_BODY_STAGE_2 = """{greeting}
+
+I know how busy showing schedules and client deals can get in {city}.
+
+I put together a couple of ideas on how modern property listings with instant mobile-friendly tour features can help attract more direct buyer inquiries.
+
+Would you have 3-5 minutes this week for me to send that preview link over?
+
+Best regards,
+
+{sender_name}
+Web Developer & Real Estate Web Consultant
+Portfolio: {portfolio_url}
+"""
+
+    FOLLOWUP_BODY_STAGE_3 = """{greeting}
+
+Quick final follow-up from my side — I don't want to clutter your inbox if you're already all set with your current web setup.
+
+If you ever decide down the road that you'd like a modern, dedicated website to capture more local {city} buyer & seller leads, feel free to reach back out anytime.
+
+Wishing you great success with your upcoming listings and closings!
+
+Best regards,
+
+{sender_name}
+Web Developer & Real Estate Web Consultant
+Portfolio: {portfolio_url}
+"""
+
+    # Backward compatibility alias
+    FOLLOWUP_BODY = FOLLOWUP_BODY_STAGE_1
 
     @staticmethod
     def clean_city_name(city: Optional[str]) -> str:
@@ -241,6 +274,7 @@ Portfolio: {portfolio_url}
     def render_followup(
         cls,
         lead: Lead,
+        stage: int = 1,
         sender_name: str = "Hamzha",
         portfolio_url: str = "https://hamzha.dev",
         original_content: Optional[str] = None,
@@ -250,14 +284,10 @@ Portfolio: {portfolio_url}
         city_display = cls.clean_city_name(lead.city or (lead.state if lead.state else "your area"))
 
         orig_subject = None
-        orig_body = None
         if original_content:
             if original_content.startswith("Subject:"):
                 parts = original_content.split("\n", 2)
                 orig_subject = parts[0].replace("Subject:", "").strip()
-                orig_body = parts[2].strip() if len(parts) > 2 else ""
-            else:
-                orig_body = original_content.strip()
 
         if orig_subject:
             subject = orig_subject if orig_subject.startswith("Re: ") else f"Re: {orig_subject}"
@@ -268,7 +298,16 @@ Portfolio: {portfolio_url}
 
         greeting = f"Hi {salutation_name}," if salutation_name else "Hi there,"
         preview_url = lead.website_preview_url or portfolio_url
-        body = cls.FOLLOWUP_BODY.format(
+
+        # Select distinct follow-up template per stage
+        if stage == 2:
+            template = cls.FOLLOWUP_BODY_STAGE_2
+        elif stage >= 3:
+            template = cls.FOLLOWUP_BODY_STAGE_3
+        else:
+            template = cls.FOLLOWUP_BODY_STAGE_1
+
+        body = template.format(
             greeting=greeting,
             city=city_display,
             preview_url=preview_url,
@@ -276,11 +315,8 @@ Portfolio: {portfolio_url}
             sender_name=sender_name
         )
 
-        # Append threaded quoted history of original message
-        if orig_body:
-            date_display = contacted_date[:10] if contacted_date else "our previous conversation"
-            quoted_lines = "\n".join(f"> {line}" if line.strip() else ">" for line in orig_body.splitlines())
-            body = f"{body}\n\n--------------------------------------------------\nOn {date_display}, {sender_name} wrote:\n{quoted_lines}"
+        # Body remains completely clean without manual quote spam (no '--- On ... wrote: > ...').
+        # Native RFC In-Reply-To & References headers handle clean thread hierarchy in Gmail & all email clients.
 
         subject = AntiSpamSanitizer.clean(subject)
         body = AntiSpamSanitizer.clean(body)
@@ -399,12 +435,14 @@ class ColdEmailer:
     def build_followup_mime_message(
         self,
         lead: Lead,
+        stage: int = 1,
         original_msg_id: Optional[str] = None,
         original_content: Optional[str] = None,
         contacted_date: Optional[str] = None
     ) -> MIMEText:
         subject, body = EmailTemplate.render_followup(
             lead=lead,
+            stage=stage,
             sender_name=self.sender_name,
             portfolio_url=self.portfolio_url,
             original_content=original_content,
@@ -428,6 +466,7 @@ class ColdEmailer:
     def send_followup(
         self,
         lead: Lead,
+        stage: int = 1,
         original_msg_id: Optional[str] = None,
         original_content: Optional[str] = None,
         contacted_date: Optional[str] = None
@@ -440,6 +479,7 @@ class ColdEmailer:
 
         subject, body = EmailTemplate.render_followup(
             lead=lead,
+            stage=stage,
             sender_name=self.sender_name,
             portfolio_url=self.portfolio_url,
             original_content=original_content,
@@ -450,7 +490,7 @@ class ColdEmailer:
         if self.dry_run:
             self.sent_count_today += 1
             self._apply_anti_spam_delay()
-            return True, f"[DRY-RUN] Follow-up simulated for {lead.email}", full_content
+            return True, f"[DRY-RUN] Follow-up (Stage {stage}) simulated for {lead.email}", full_content
 
         if not self.sender_email or not self.sender_password:
             return False, "SMTP credentials not provided", full_content
@@ -458,6 +498,7 @@ class ColdEmailer:
         try:
             msg = self.build_followup_mime_message(
                 lead=lead,
+                stage=stage,
                 original_msg_id=original_msg_id,
                 original_content=original_content,
                 contacted_date=contacted_date
@@ -470,7 +511,7 @@ class ColdEmailer:
 
             self.sent_count_today += 1
             self._apply_anti_spam_delay()
-            return True, f"Successfully sent follow-up to {lead.email}", full_content
+            return True, f"Successfully sent follow-up (Stage {stage}) to {lead.email}", full_content
         except Exception as e:
             return False, f"SMTP Error sending follow-up to {lead.email}: {str(e)}", full_content
 

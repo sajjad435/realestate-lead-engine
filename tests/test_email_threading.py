@@ -5,7 +5,7 @@ from src.mailer import EmailTemplate, ColdEmailer
 from src.db import LeadTrackerDB
 from src.pipeline import LeadAcquisitionPipeline
 
-def test_render_followup_includes_quoted_previous_email():
+def test_render_followup_clean_body_no_quoted_spam():
     lead = Lead(name="Deen Ahmed", city="Montreal", email="deen@realtor.com")
     original_email = (
         "Subject: Quick question regarding Montreal real estate listings - Deen\n\n"
@@ -27,14 +27,14 @@ def test_render_followup_includes_quoted_previous_email():
     assert subject.startswith("Re: ")
     assert "Montreal" in subject
     
-    # 2. Body must contain the new follow-up greeting & message
+    # 2. Body must contain the clean new follow-up greeting & message
     assert "Hi Deen," in body
     assert "floating this back to the top of your inbox" in body
 
-    # 3. Body must include quoted history of the previous email below
-    assert "On 2026-11-16, Sajjad Wali wrote:" in body
-    assert "> Hi Deen," in body
-    assert "> I noticed your Montreal listings" in body
+    # 3. Body must NOT include quoted history of the previous email below
+    assert "On 2026-11-16, Sajjad Wali wrote:" not in body
+    assert "--------------------------------------------------" not in body
+    assert not any(line.strip().startswith(">") for line in body.splitlines())
 
 def test_build_followup_mime_message_has_threading_headers():
     emailer = ColdEmailer(
@@ -56,9 +56,9 @@ def test_build_followup_mime_message_has_threading_headers():
     assert msg["In-Reply-To"] == original_msg_id
     assert msg["References"] == original_msg_id
     assert msg["Subject"].startswith("Re: ")
-    # Ensure quoted content is in the payload (decoded from base64/utf-8)
     payload = msg.get_payload(decode=True).decode("utf-8")
-    assert "> Original outreach message." in payload
+    assert "--------------------------------------------------" not in payload
+    assert "> Original outreach message." not in payload
 
 def test_db_tracks_and_retrieves_message_id(tmp_path):
     db_file = tmp_path / "test_tracker.db"
