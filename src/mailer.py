@@ -73,12 +73,21 @@ Web Developer & Real Estate Web Consultant
 Portfolio: {portfolio_url}
 """
 
+    @staticmethod
+    def clean_city_name(city: Optional[str]) -> str:
+        if not city:
+            return ""
+        # Strip CLI flags like --live, --city, stray quotes, etc.
+        c = re.sub(r"\s*--[a-zA-Z0-9_-]+.*", "", city)
+        return re.sub(r'["\']', '', c).strip()
+
     @classmethod
     def _clean_candidate(cls, word: str, city_lower: str, stop_words: set) -> Optional[str]:
         if not word:
             return None
-        # Remove numbers and non-alpha characters
-        clean = re.sub(r"[^a-zA-Z]", "", word).strip()
+        # Remove numbers, keep all Unicode letters (including accented ë, é, ç, etc.)
+        clean = re.sub(r"[^\w]", "", word, flags=re.UNICODE).strip()
+        clean = re.sub(r"\d+", "", clean)
         if not clean:
             return None
         
@@ -97,14 +106,14 @@ Portfolio: {portfolio_url}
             
         for suffix in suffixes:
             if clean_lower.endswith(suffix) and len(clean_lower) > len(suffix) + 2:
-                candidate = clean_lower[:-len(suffix)]
-                if candidate not in stop_words and candidate != city_lower and 2 <= len(candidate) <= 12:
-                    return candidate.capitalize()
+                candidate = clean[:-len(suffix)]
+                cand_lower = candidate.lower()
+                if cand_lower not in stop_words and cand_lower != city_lower and 2 <= len(candidate) <= 12:
+                    return candidate[:1].upper() + candidate[1:]
                     
-        # Length check: A real person's first name is typically between 2 and 11 characters.
-        # Single strings longer than 11 characters without spaces are handles/slugs
-        if 2 <= len(clean) <= 11 and clean_lower not in stop_words and clean_lower != city_lower:
-            return clean.capitalize()
+        # Length check: A real person's first name is typically between 2 and 12 characters.
+        if 2 <= len(clean) <= 12 and clean_lower not in stop_words and clean_lower != city_lower:
+            return clean[:1].upper() + clean[1:]
             
         return None
 
@@ -128,11 +137,20 @@ Portfolio: {portfolio_url}
             if len(parts) >= 2:
                 cand = cls._clean_candidate(parts[0], city_lower, stop_words)
                 if cand:
+                    # If raw_name has the human accented version of this name (e.g. "Éric" for "eric"), prefer it!
+                    if raw_name:
+                        for token in re.sub(r"[^\w\s]", " ", raw_name, flags=re.UNICODE).split():
+                            if token and not token.isdigit():
+                                import unicodedata
+                                norm_token = ''.join(c for c in unicodedata.normalize('NFD', token) if unicodedata.category(c) != 'Mn').lower()
+                                norm_cand = ''.join(c for c in unicodedata.normalize('NFD', cand) if unicodedata.category(c) != 'Mn').lower()
+                                if norm_token == norm_cand and len(token) >= 2:
+                                    return token[:1].upper() + token[1:]
                     return cand
 
         # Priority 2: Name field inspection (e.g. "Sophia Sanchez", "Sarah Jenkins", or handle "Nikkisells")
         if raw_name:
-            clean_tokens = [w for w in re.sub(r"[^a-zA-Z\s]", " ", raw_name).split() if w]
+            clean_tokens = [w for w in re.sub(r"[^\w\s]", " ", raw_name, flags=re.UNICODE).split() if w and not w.isdigit()]
             if len(clean_tokens) >= 2:
                 # Multi-word name: check first word (e.g. "Sophia" from "Sophia Sanchez")
                 cand = cls._clean_candidate(clean_tokens[0], city_lower, stop_words)
@@ -162,7 +180,7 @@ Portfolio: {portfolio_url}
         if lead.custom_hook and lead.custom_hook.strip():
             return lead.custom_hook.strip()
 
-        city = lead.city or (lead.state if lead.state else "your area")
+        city = cls.clean_city_name(lead.city or (lead.state if lead.state else "your area"))
 
         # 1. Google Maps / Rating hook
         if lead.rating and lead.rating >= 4.0:
@@ -194,7 +212,7 @@ Portfolio: {portfolio_url}
     @classmethod
     def render(cls, lead: Lead, sender_name: str = "Hamzha", portfolio_url: str = "https://hamzha.dev") -> Tuple[str, str]:
         salutation_name = cls.extract_salutation_name(lead)
-        city_display = lead.city or (lead.state if lead.state else "your area")
+        city_display = cls.clean_city_name(lead.city or (lead.state if lead.state else "your area"))
         business_display = lead.name or "your real estate business"
         
         if salutation_name:
@@ -229,7 +247,7 @@ Portfolio: {portfolio_url}
         contacted_date: Optional[str] = None
     ) -> Tuple[str, str]:
         salutation_name = cls.extract_salutation_name(lead)
-        city_display = lead.city or (lead.state if lead.state else "your area")
+        city_display = cls.clean_city_name(lead.city or (lead.state if lead.state else "your area"))
 
         orig_subject = None
         orig_body = None

@@ -12,7 +12,7 @@ if env_file.exists():
             line = line.strip()
             if line and not line.startswith("#") and "=" in line:
                 key, val = line.split("=", 1)
-                os.environ[key.strip()] = val.strip()
+                os.environ[key.strip()] = val.strip().strip('"\'')
 
 class AppConfig(BaseModel):
     # Sender details

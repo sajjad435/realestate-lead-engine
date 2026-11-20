@@ -1,9 +1,28 @@
 import os
+import re
 import datetime
 from typing import List, Dict, Any
 from fpdf import FPDF
 from fpdf.enums import XPos, YPos
 from src.models import RunMetrics
+
+def sanitize_pdf_text(text: str) -> str:
+    """
+    Sanitizes arbitrary text (with emojis, curly quotes, dashes, symbols)
+    so it can be safely encoded by standard PDF core fonts (Latin-1)
+    without crashing FPDF with FPDFUnicodeEncodingException.
+    """
+    if not text:
+        return ""
+    replacements = {
+        "\u2018": "'", "\u2019": "'", "\u201c": '"', "\u201d": '"',
+        "\u2013": "-", "\u2014": "-", "\u2026": "...", "\u00ae": "(R)",
+        "\u00a9": "(C)", "\u2122": "(TM)"
+    }
+    for k, v in replacements.items():
+        text = text.replace(k, v)
+    # Strip emojis and non-Latin1 characters
+    return "".join(c for c in text if ord(c) < 256)
 
 class LeadReportPDF(FPDF):
     def header(self):
@@ -37,7 +56,8 @@ class PDFReporter:
         pdf.set_fill_color(240, 244, 248)
         pdf.set_font("Helvetica", "B", 11)
         pdf.set_text_color(20, 30, 50)
-        pdf.cell(0, 8, f"Target Locations Processed: {', '.join(cities)}", fill=True, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        clean_cities = [sanitize_pdf_text(c) for c in cities]
+        pdf.cell(0, 8, f"Target Locations Processed: {', '.join(clean_cities)}", fill=True, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
         pdf.ln(3)
 
         # 2. Executive Metrics Summary Table
@@ -71,14 +91,14 @@ class PDFReporter:
 
         pdf.set_font("Helvetica", "", 7)
         for lead in leads:
-            name = (lead.get("name") or "Realtor")[:20]
-            city = (lead.get("city") or "")[:10]
-            src = (lead.get("source") or "")[:10]
-            source_link = lead.get("profile_url") or ""
-            link_display = source_link[:26] + "..." if len(source_link) > 26 else (source_link or "N/A")
-            email = (lead.get("email") or "")[:26]
-            status = (lead.get("status") or "SENT")[:8]
-            followup = str(lead.get("followup_due_date") or "")[:10]
+            name = sanitize_pdf_text((lead.get("name") or "Realtor"))[:20]
+            city = sanitize_pdf_text((lead.get("city") or ""))[:10]
+            src = sanitize_pdf_text((lead.get("source") or ""))[:10]
+            source_link = (lead.get("profile_url") or "").strip()
+            link_display = sanitize_pdf_text(source_link[:26] + "..." if len(source_link) > 26 else (source_link or "N/A"))
+            email = sanitize_pdf_text((lead.get("email") or ""))[:26]
+            status = sanitize_pdf_text((lead.get("status") or "SENT"))[:8]
+            followup = sanitize_pdf_text(str(lead.get("followup_due_date") or ""))[:10]
 
             pdf.cell(35, 6, name, 1, align="L", new_x=XPos.RIGHT, new_y=YPos.TOP)
             pdf.cell(18, 6, city, 1, align="L", new_x=XPos.RIGHT, new_y=YPos.TOP)
@@ -106,9 +126,8 @@ class PDFReporter:
 
             pdf.set_font("Courier", "", 7)
             pdf.set_fill_color(248, 249, 250)
-            sample_text = leads[0]["email_content"]
-            clean_text = sample_text.encode("ascii", "ignore").decode("ascii")
-            pdf.multi_cell(0, 4, clean_text, 1, fill=True)
+            sample_text = sanitize_pdf_text(leads[0]["email_content"])
+            pdf.multi_cell(0, 4, sample_text, 1, fill=True)
 
         os.makedirs(os.path.dirname(os.path.abspath(self.output_path)), exist_ok=True)
         pdf.output(self.output_path)
