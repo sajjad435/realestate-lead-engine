@@ -40,16 +40,13 @@ Portfolio: {portfolio_url}
 
 {hook}
 
-While reviewing your business profile, I noticed that you don't currently have a dedicated website to capture organic local buyer and seller leads.
+While reviewing the local market, I noticed several nearby agents in {city} are connecting with clients through dedicated websites—and without one, you might be missing out on buyers and sellers searching for local agents on Google and Maps.
 
-I specialize in building clean, modern websites specifically for real estate agents.
+I build custom realtor websites tailored to your brand, colors, photos, and name (sample: {portfolio_url}).
 
-Would you be open if I send over a quick sample website preview first? If you like the preview, just let me know and I will customize the complete website exactly as you want, tailored to your brand.
+I'd love to put together a sample preview draft for you. If you like it, we can talk; if not, no problem at all.
 
-You can also check out some of my previous work here:
-{portfolio_url}
-
-Looking forward to your thoughts!
+Open to seeing a quick preview this week?
 
 Best regards,
 
@@ -240,7 +237,7 @@ Portfolio: {portfolio_url}
             return "I saw your recent note about looking for an effective way to showcase your real estate listings online."
 
         # 5. Default natural hook
-        return f"I came across your real estate profile in {city} and really liked your property posts and listings."
+        return f"I came across your profile in {city} and really liked your active listings."
 
     @classmethod
     def render(cls, lead: Lead, sender_name: str = "Hamzha", portfolio_url: str = "https://hamzha.dev") -> Tuple[str, str]:

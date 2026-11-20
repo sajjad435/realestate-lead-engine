@@ -15,13 +15,14 @@ def test_email_template_rendering_standard_pitch_from_screenshot():
         portfolio_url="https://sajjad-wali-portfolio.vercel.app/"
     )
     assert "Hi Samridhi," in rendered_body
-    assert "I came across your real estate profile in ranchi and really liked your property posts and listings." in rendered_body
-    assert "While reviewing your business profile, I noticed that you don't currently have a dedicated website to capture organic local buyer and seller leads." in rendered_body
-    assert "I specialize in building clean, modern websites specifically for real estate agents." in rendered_body
-    assert "Would you be open if I send over a quick sample website preview first? If you like the preview, just let me know and I will customize the complete website exactly as you want, tailored to your brand." in rendered_body
-    assert "You can also check out some of my previous work here:" in rendered_body
+    assert "I came across your profile in ranchi and really liked your active listings." in rendered_body
+    assert "While reviewing the local market, I noticed several nearby agents in ranchi are connecting with clients through dedicated websites" in rendered_body
+    assert "searching for local agents on Google and Maps" in rendered_body
+    assert "tailored to your brand, colors, photos, and name" in rendered_body
+    assert "sample preview draft" in rendered_body
+    assert "If you like it, we can talk; if not, no problem at all." in rendered_body
+    assert "Open to seeing a quick preview this week?" in rendered_body
     assert "Portfolio: https://sajjad-wali-portfolio.vercel.app/" in rendered_body
-    assert "Looking forward to your thoughts!" in rendered_body
     assert "Sajjad Wali" in rendered_body
     assert "Web Developer & Real Estate Web Consultant" in rendered_body
     # Ensure prototype preview features are disabled
@@ -44,7 +45,8 @@ def test_email_template_ignores_website_preview_url_when_feature_stopped():
     # Even if website_preview_url was attached, standard pitch must be sent as requested by user
     assert "Live Website Preview:" not in rendered_body
     assert "https://sarah-jenkins-realty.vercel.app" not in rendered_body
-    assert "Would you be open if I send over a quick sample website preview first?" in rendered_body
+    assert "sample preview draft" in rendered_body
+    assert "Open to seeing a quick preview this week?" in rendered_body
 
 def test_email_template_rendering_fallback():
     lead = Lead(
@@ -121,7 +123,8 @@ def test_cold_emailer_dry_run_mode():
     assert "[DRY-RUN]" in message
     assert "alex@texasliving.com" in message
     assert "https://hamzha.dev" in email_content
-    assert "Would you be open if I send over a quick sample website preview first?" in email_content
+    assert "sample preview draft" in email_content
+    assert "Open to seeing a quick preview this week?" in email_content
 
 def test_cold_emailer_rate_limiter():
     emailer = ColdEmailer(dry_run=True, max_daily_emails=2)
