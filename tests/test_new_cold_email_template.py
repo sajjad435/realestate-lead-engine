@@ -14,6 +14,9 @@ def test_cold_email_new_high_converting_template():
     assert "Patna" in subject
     assert "Aarif" in subject
 
+    # 1b. Natural opening hook validation
+    assert "I came across your profile in Patna and really liked your property posts and listings." in body
+
     # 2. Key messaging & competitive research angle
     assert "While reviewing your business profile, I noticed that you don't currently have a dedicated website to capture organic local buyer and seller leads." in body
     assert "Several nearby agents in Patna are connecting with clients through dedicated websites" in body

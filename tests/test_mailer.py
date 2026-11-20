@@ -15,7 +15,7 @@ def test_email_template_rendering_standard_pitch_from_screenshot():
         portfolio_url="https://sajjad-wali-portfolio.vercel.app/"
     )
     assert "Hi Samridhi," in rendered_body
-    assert "I came across your profile in ranchi and really liked your active listings." in rendered_body
+    assert "I came across your profile in ranchi and really liked your property posts and listings." in rendered_body
     assert "While reviewing your business profile, I noticed that you don't currently have a dedicated website to capture organic local buyer and seller leads." in rendered_body
     assert "Several nearby agents in ranchi are connecting with clients through dedicated websites" in rendered_body
     assert "searching for local agents on Google and Maps" in rendered_body

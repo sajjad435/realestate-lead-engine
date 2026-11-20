@@ -237,7 +237,7 @@ Portfolio: {portfolio_url}
             return "I saw your recent note about looking for an effective way to showcase your real estate listings online."
 
         # 5. Default natural hook
-        return f"I came across your profile in {city} and really liked your active listings."
+        return f"I came across your profile in {city} and really liked your property posts and listings."
 
     @classmethod
     def render(cls, lead: Lead, sender_name: str = "Hamzha", portfolio_url: str = "https://hamzha.dev") -> Tuple[str, str]:
