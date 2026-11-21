@@ -219,7 +219,17 @@ class LeadAcquisitionPipeline:
             )
             original_content = record.get("email_content")
             contacted_at = record.get("contacted_at")
-            original_msg_id = record.get("message_id") or getattr(lead, "message_id", None) or f"<{lead.email}.initial@mail.com>"
+            
+            # Retrieve real Gmail Message-ID to ensure Gmail nests the follow-up directly under the first email
+            original_msg_id = record.get("message_id") or getattr(lead, "message_id", None)
+            if not original_msg_id or "initial@mail.com" in str(original_msg_id) or "thread.ref" in str(original_msg_id):
+                original_msg_id = self.db.get_message_id_for_email(lead.email)
+                if not original_msg_id and self.emailer.sender_email and self.emailer.sender_password and not self.dry_run:
+                    original_msg_id = self.db.sync_message_id_from_imap(
+                        lead.email,
+                        self.emailer.sender_email,
+                        self.emailer.sender_password
+                    )
 
             print(f"   🚀 [{name}] Dispatching clean follow-up email (Stage {target_stage}) to {lead.email}...")
             success, msg, _ = self.emailer.send_followup(

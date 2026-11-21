@@ -106,3 +106,106 @@ def test_pipeline_followup_passes_thread_context_to_mailer(tmp_path):
         _, kwargs = mock_send.call_args
         assert kwargs.get("original_msg_id") == orig_msg_id
         assert kwargs.get("original_content") == orig_content
+
+
+def test_build_followup_mime_message_never_uses_fake_thread_ref():
+    emailer = ColdEmailer(
+        dry_run=True,
+        sender_email="sajjadwali007@gmail.com",
+        sender_name="Sajjad Wali"
+    )
+    lead = Lead(name="Test Agent", city="Columbus", email="agent@realty.com")
+    
+    # 1. When original_msg_id is None, must NOT invent dummy thread.ref header
+    msg_none = emailer.build_followup_mime_message(
+        lead=lead,
+        original_msg_id=None,
+        original_content="Subject: Hello\n\nContent"
+    )
+    assert msg_none.get("In-Reply-To") is None
+    assert msg_none.get("References") is None
+
+    # 2. When original_msg_id is a bogus fake ID (e.g. initial@mail.com or thread.ref), must reject it
+    msg_fake = emailer.build_followup_mime_message(
+        lead=lead,
+        original_msg_id="<agent@realty.com.initial@mail.com>",
+        original_content="Subject: Hello\n\nContent"
+    )
+    assert msg_fake.get("In-Reply-To") is None
+    assert msg_fake.get("References") is None
+
+
+def test_pipeline_followup_does_not_pass_bogus_fallback_message_id(tmp_path):
+    db_file = tmp_path / "leads_no_msgid.db"
+    csv_file = tmp_path / "locations.csv"
+    csv_file.write_text("city,state\nColumbus,OH\n", encoding="utf-8")
+    
+    db = LeadTrackerDB(str(db_file))
+    lead = Lead(name="John Doe", city="Columbus", email="johndoe@realtor.com")
+    db.record_lead_contacted(lead, email_content="Subject: Hi\n\nBody", message_id=None)
+    
+    pipeline = LeadAcquisitionPipeline(
+        csv_path=str(csv_file),
+        db_path=str(db_file),
+        dry_run=True,
+        sender_email="test@gmail.com",
+        sender_name="Sajjad Wali"
+    )
+    
+    with patch.object(pipeline.emailer, "send_followup", wraps=pipeline.emailer.send_followup) as mock_send:
+        pipeline.run_followups(days_threshold=0, enforce_business_hours=False)
+        mock_send.assert_called_once()
+        _, kwargs = mock_send.call_args
+        passed_msg_id = kwargs.get("original_msg_id")
+        # Must NEVER be the fake fallback like <johndoe@realtor.com.initial@mail.com>
+        assert passed_msg_id != "<johndoe@realtor.com.initial@mail.com>"
+        assert passed_msg_id is None or not (
+            "initial@mail.com" in str(passed_msg_id) or "thread.ref" in str(passed_msg_id)
+        )
+
+
+def test_db_get_message_id_filters_fake_ids(tmp_path):
+    db_file = tmp_path / "test_filter_ids.db"
+    db = LeadTrackerDB(str(db_file))
+    
+    # 1. Real ID
+    lead1 = Lead(name="Agent One", city="Columbus", email="agent1@realty.com")
+    db.record_lead_contacted(lead1, email_content="Content", message_id="<real-id-12345@gmail.com>")
+    assert db.get_message_id_for_email("agent1@realty.com") == "<real-id-12345@gmail.com>"
+    
+    # 2. Fake .initial@mail.com ID
+    lead2 = Lead(name="Agent Two", city="Columbus", email="agent2@realty.com")
+    db.record_lead_contacted(lead2, email_content="Content", message_id="<agent2@realty.com.initial@mail.com>")
+    assert db.get_message_id_for_email("agent2@realty.com") is None
+
+    # 3. Non-existent lead
+    assert db.get_message_id_for_email("unknown@realty.com") is None
+
+
+def test_db_sync_message_id_from_imap_mock(tmp_path):
+    db_file = tmp_path / "test_imap_sync.db"
+    db = LeadTrackerDB(str(db_file))
+    lead = Lead(name="Agent IMAP", city="Columbus", email="imap_agent@realty.com")
+    db.record_lead_contacted(lead, email_content="Content", message_id=None)
+
+    fake_header = b"Message-ID: <imap.real.msg.999@gmail.com>\r\nSubject: Test\r\n\r\n"
+
+    with patch("imaplib.IMAP4_SSL") as mock_imap:
+        instance = MagicMock()
+        mock_imap.return_value = instance
+        instance.login.return_value = ("OK", [b"Logged in"])
+        instance.select.return_value = ("OK", [b"1"])
+        instance.search.return_value = ("OK", [b"101 102"])
+        instance.fetch.return_value = ("OK", [(b"101", fake_header)])
+
+        retrieved_id = db.sync_message_id_from_imap(
+            email="imap_agent@realty.com",
+            sender_email="sajjad@gmail.com",
+            sender_password="secret_pass"
+        )
+
+        assert retrieved_id == "<imap.real.msg.999@gmail.com>"
+        # Should now be saved in the database
+        assert db.get_message_id_for_email("imap_agent@realty.com") == "<imap.real.msg.999@gmail.com>"
+
+

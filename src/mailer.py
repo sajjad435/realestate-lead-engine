@@ -455,9 +455,12 @@ class ColdEmailer:
         msg["Reply-To"] = self.sender_email or "info@mail.com"
 
         # Threading RFC headers to nest follow-up directly into the original conversation thread
-        thread_ref = original_msg_id or getattr(lead, "message_id", None) or email.utils.make_msgid(domain="thread.ref")
-        msg["In-Reply-To"] = thread_ref
-        msg["References"] = thread_ref
+        thread_ref = original_msg_id or getattr(lead, "message_id", None)
+        if thread_ref:
+            thread_ref_str = str(thread_ref).strip()
+            if thread_ref_str and not ("initial@mail.com" in thread_ref_str or "thread.ref" in thread_ref_str):
+                msg["In-Reply-To"] = thread_ref_str
+                msg["References"] = thread_ref_str
         return msg
 
     def send_followup(

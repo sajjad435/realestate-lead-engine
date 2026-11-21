@@ -194,6 +194,52 @@ class LeadTrackerDB:
             """, (stage, status_label, now.isoformat(), now.isoformat(), clean_email))
             conn.commit()
 
+    def get_message_id_for_email(self, email: str) -> Optional[str]:
+        if not email:
+            return None
+        clean_email = email.strip().lower()
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT message_id FROM contacted_leads WHERE LOWER(email) = ?", (clean_email,))
+            row = cursor.fetchone()
+            if row and row["message_id"]:
+                mid = str(row["message_id"]).strip()
+                if mid and not ("initial@mail.com" in mid or "thread.ref" in mid):
+                    return mid
+        return None
+
+    def sync_message_id_from_imap(self, email: str, sender_email: str, sender_password: str) -> Optional[str]:
+        if not email or not sender_email or not sender_password:
+            return None
+        try:
+            import imaplib
+            import email as email_pkg
+            mail = imaplib.IMAP4_SSL("imap.gmail.com")
+            mail.login(sender_email, sender_password)
+            mail.select('"[Gmail]/Sent Mail"', readonly=True)
+            status, data = mail.search(None, f'(TO "{email.strip().lower()}")')
+            if status == "OK" and data[0]:
+                ids = data[0].split()
+                # The earliest email in Sent Mail is the initial outreach
+                earliest_id = ids[0]
+                status, msg_data = mail.fetch(earliest_id, "(BODY.PEEK[HEADER.FIELDS (MESSAGE-ID)])")
+                if status == "OK" and msg_data:
+                    raw_header = msg_data[0][1]
+                    parsed = email_pkg.message_from_bytes(raw_header)
+                    real_mid = parsed.get("Message-ID")
+                    if real_mid and real_mid.strip():
+                        real_mid = real_mid.strip()
+                        with self._get_connection() as conn:
+                            cursor = conn.cursor()
+                            cursor.execute("UPDATE contacted_leads SET message_id = ? WHERE LOWER(email) = ?", (real_mid, email.strip().lower()))
+                            conn.commit()
+                        mail.logout()
+                        return real_mid
+            mail.logout()
+        except Exception as e:
+            print(f"⚠️ [IMAP Sync Warning] Could not fetch Message-ID for {email}: {e}")
+        return None
+
     def close(self):
         # sqlite connection in context manager closes automatically
         pass

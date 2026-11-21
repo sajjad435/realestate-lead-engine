@@ -100,12 +100,13 @@ def test_followup_emailer_attaches_threading_headers():
         name="Sarah Jenkins",
         city="Detroit",
         email="sarah@realty.com",
-        source="Google Maps"
+        source="Google Maps",
+        message_id="<sarah.original.123@gmail.com>"
     )
     msg = emailer.build_followup_mime_message(lead)
     assert "Re:" in msg["Subject"]
-    assert msg["In-Reply-To"] is not None
-    assert msg["References"] is not None
+    assert msg["In-Reply-To"] == "<sarah.original.123@gmail.com>"
+    assert msg["References"] == "<sarah.original.123@gmail.com>"
     assert msg["Message-ID"] is not None
     assert msg["Date"] is not None
 
