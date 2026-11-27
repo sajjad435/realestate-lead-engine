@@ -316,12 +316,6 @@ Portfolio: {portfolio_url}
             sender_name=sender_name
         )
 
-        # Append threaded quoted history of previous email below the follow-up
-        if orig_body:
-            date_display = contacted_date[:10] if contacted_date else "our previous conversation"
-            quoted_lines = "\n".join(f"> {line}" if line.strip() else ">" for line in orig_body.splitlines())
-            body = f"{body}\n\n--------------------------------------------------\nOn {date_display}, {sender_name} wrote:\n{quoted_lines}"
-
         subject = AntiSpamSanitizer.clean(subject)
         body = AntiSpamSanitizer.clean(body)
         return subject, body
