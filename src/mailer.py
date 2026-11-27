@@ -281,10 +281,14 @@ Portfolio: {portfolio_url}
         city_display = cls.clean_city_name(lead.city or (lead.state if lead.state else "your area"))
 
         orig_subject = None
+        orig_body = None
         if original_content:
             if original_content.startswith("Subject:"):
                 parts = original_content.split("\n", 2)
                 orig_subject = parts[0].replace("Subject:", "").strip()
+                orig_body = parts[2].strip() if len(parts) > 2 else ""
+            else:
+                orig_body = original_content.strip()
 
         if orig_subject:
             subject = orig_subject if orig_subject.startswith("Re: ") else f"Re: {orig_subject}"
@@ -312,8 +316,11 @@ Portfolio: {portfolio_url}
             sender_name=sender_name
         )
 
-        # Body remains completely clean without manual quote spam (no '--- On ... wrote: > ...').
-        # Native RFC In-Reply-To & References headers handle clean thread hierarchy in Gmail & all email clients.
+        # Append threaded quoted history of previous email below the follow-up
+        if orig_body:
+            date_display = contacted_date[:10] if contacted_date else "our previous conversation"
+            quoted_lines = "\n".join(f"> {line}" if line.strip() else ">" for line in orig_body.splitlines())
+            body = f"{body}\n\n--------------------------------------------------\nOn {date_display}, {sender_name} wrote:\n{quoted_lines}"
 
         subject = AntiSpamSanitizer.clean(subject)
         body = AntiSpamSanitizer.clean(body)

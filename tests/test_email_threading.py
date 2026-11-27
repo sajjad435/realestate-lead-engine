@@ -5,13 +5,13 @@ from src.mailer import EmailTemplate, ColdEmailer
 from src.db import LeadTrackerDB
 from src.pipeline import LeadAcquisitionPipeline
 
-def test_render_followup_clean_body_no_quoted_spam():
+def test_render_followup_includes_quoted_previous_email_history():
     lead = Lead(name="Deen Ahmed", city="Montreal", email="deen@realtor.com")
     original_email = (
         "Subject: Quick question regarding Montreal real estate listings - Deen\n\n"
         "Hi Deen,\n\n"
         "I noticed your Montreal listings and saw you don't have a personal portfolio site.\n"
-        "Would you like a free preview?\n\n"
+        "Would you like a sample preview?\n\n"
         "Best,\nSajjad Wali"
     )
     
@@ -31,10 +31,12 @@ def test_render_followup_clean_body_no_quoted_spam():
     assert "Hi Deen," in body
     assert "floating this back to the top of your inbox" in body
 
-    # 3. Body must NOT include quoted history of the previous email below
-    assert "On 2026-11-16, Sajjad Wali wrote:" not in body
-    assert "--------------------------------------------------" not in body
-    assert not any(line.strip().startswith(">") for line in body.splitlines())
+    # 3. Body must include quoted history of the previous email below
+    assert "On 2026-11-16, Sajjad Wali wrote:" in body
+    assert "--------------------------------------------------" in body
+    assert "> Hi Deen," in body
+    assert "> I noticed your Montreal listings" in body
+
 
 def test_build_followup_mime_message_has_threading_headers():
     emailer = ColdEmailer(
@@ -57,8 +59,8 @@ def test_build_followup_mime_message_has_threading_headers():
     assert msg["References"] == original_msg_id
     assert msg["Subject"].startswith("Re: ")
     payload = msg.get_payload(decode=True).decode("utf-8")
-    assert "--------------------------------------------------" not in payload
-    assert "> Original outreach message." not in payload
+    assert "--------------------------------------------------" in payload
+    assert "> Original outreach message." in payload
 
 def test_db_tracks_and_retrieves_message_id(tmp_path):
     db_file = tmp_path / "test_tracker.db"

@@ -5,7 +5,7 @@ from src.models import Lead
 from src.mailer import EmailTemplate, ColdEmailer
 from src.db import LeadTrackerDB
 
-def test_followup_body_is_clean_without_quote_markers():
+def test_followup_body_includes_previous_email_history():
     lead = Lead(name="Aarif Buddha", city="Patna", email="aarifkumar24@gmail.com")
     original_content = (
         "Subject: Quick question regarding patna real estate listings - Buddha\n\n"
@@ -27,10 +27,12 @@ def test_followup_body_is_clean_without_quote_markers():
         assert subject.startswith("Re: ")
         assert "patna" in subject.lower()
 
-        # 2. Body must NOT contain manual quote markers or raw pasted history
-        assert "--------------------------------------------------" not in body
-        assert "wrote:" not in body
-        assert not any(line.strip().startswith(">") for line in body.splitlines())
+        # 2. Body must contain previous email history quoted below
+        assert "--------------------------------------------------" in body
+        assert "wrote:" in body
+        assert any(line.strip().startswith(">") for line in body.splitlines())
+        assert "> Hi Buddha," in body
+
 
 def test_followup_has_distinct_templates_for_stages():
     lead = Lead(name="Aarif Buddha", city="Patna", email="aarifkumar24@gmail.com")
@@ -51,7 +53,8 @@ def test_followup_has_distinct_templates_for_stages():
     # Stage 3: closing loop / final follow-up
     assert "final" in body_3.lower() or "clutter" in body_3.lower()
 
-def test_followup_mime_threading_headers_without_quote_in_body():
+
+def test_followup_mime_threading_headers_with_quote_in_body():
     emailer = ColdEmailer(dry_run=True, sender_email="sajjadwali257@gmail.com", sender_name="Sajjad Wali")
     lead = Lead(name="Buddha Property Dealer", city="Patna", email="aarifkumar24@gmail.com")
     original_msg_id = "<orig-message-uuid-123@gmail.com>"
@@ -70,8 +73,8 @@ def test_followup_mime_threading_headers_without_quote_in_body():
     assert msg["Subject"].startswith("Re: ")
 
     payload = msg.get_payload(decode=True).decode("utf-8")
-    assert "--------------------------------------------------" not in payload
-    assert "> Original outreach text" not in payload
+    assert "--------------------------------------------------" in payload
+    assert "> Original outreach text" in payload
 
 def test_db_multi_stage_tracking_and_transitions(tmp_path):
     db_file = tmp_path / "test_leads.db"
