@@ -56,7 +56,7 @@ def test_full_pipeline_end_to_end_execution(integration_env):
     assert len(records) == metrics.total_emails_sent
     assert any(r.get("source") == "Facebook" for r in records)
     assert any(r.get("source") == "Reddit Intent" for r in records)
-    assert any("sample preview draft" in (r.get("email_content") or "") for r in records)
+    assert any("quick 30-second preview link" in (r.get("email_content") or "") for r in records)
     assert any("https://hamzha.dev" in (r.get("email_content") or "") for r in records)
 
     # 5. Verify PDF Report was generated

@@ -44,8 +44,6 @@ While reviewing your business profile, I noticed that you don't currently have a
 
 I build custom realtor websites tailored to your brand, colors, photos, and name (sample: {portfolio_url}).
 
-I'd love to put together a sample preview draft for you. If you like it, we can talk; if not, no problem at all.
-
 Would it be alright if I send over a quick 30-second preview link for your brand, or are you all set right now?
 
 Best regards,

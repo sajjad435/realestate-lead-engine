@@ -24,9 +24,9 @@ def test_cold_email_new_high_converting_template():
     # 3. Customization by brand, colors, photos, name
     assert "tailored to your brand, colors, photos, and name" in body
 
-    # 4. Zero-risk, spam-free sample preview offer with low-pressure CTA
-    assert "sample preview draft" in body
-    assert "If you like it, we can talk; if not, no problem at all." in body
+    # 4. Zero-risk, spam-free single low-pressure CTA (no redundant duplicate pitch)
+    assert "sample preview draft" not in body
+    assert "If you like it, we can talk" not in body
     assert "Would it be alright if I send over a quick 30-second preview link for your brand, or are you all set right now?" in body
 
     # 5. Anti-spam check: Must NOT contain the spam trigger word "free"

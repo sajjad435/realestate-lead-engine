@@ -47,7 +47,7 @@ def test_rendered_cold_email_is_completely_spam_word_free():
     assert "👉" not in body
     assert "👉" not in subject
     # Must be professional and clean
-    assert "sample website preview" in body.lower() or "complimentary website preview" in body.lower() or "preview draft" in body.lower()
+    assert "sample website preview" in body.lower() or "complimentary website preview" in body.lower() or "preview draft" in body.lower() or "preview link" in body.lower()
 
 def test_cold_emailer_message_headers_include_rfc_anti_spam_fields():
     emailer = ColdEmailer(

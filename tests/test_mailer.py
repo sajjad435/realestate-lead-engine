@@ -20,8 +20,9 @@ def test_email_template_rendering_standard_pitch_from_screenshot():
     assert "Several nearby agents in ranchi are connecting with clients through dedicated websites" in rendered_body
     assert "searching for local agents on Google and Maps" in rendered_body
     assert "tailored to your brand, colors, photos, and name" in rendered_body
-    assert "sample preview draft" in rendered_body
-    assert "If you like it, we can talk; if not, no problem at all." in rendered_body
+    # Single clean low-pressure CTA without redundant duplicate pitch
+    assert "sample preview draft" not in rendered_body
+    assert "If you like it, we can talk" not in rendered_body
     assert "Would it be alright if I send over a quick 30-second preview link for your brand, or are you all set right now?" in rendered_body
     assert "Portfolio: https://sajjad-wali-portfolio.vercel.app/" in rendered_body
     assert "Sajjad Wali" in rendered_body
@@ -46,7 +47,7 @@ def test_email_template_ignores_website_preview_url_when_feature_stopped():
     # Even if website_preview_url was attached, standard pitch must be sent as requested by user
     assert "Live Website Preview:" not in rendered_body
     assert "https://sarah-jenkins-realty.vercel.app" not in rendered_body
-    assert "sample preview draft" in rendered_body
+    assert "sample preview draft" not in rendered_body
     assert "Would it be alright if I send over a quick 30-second preview link for your brand, or are you all set right now?" in rendered_body
 
 def test_email_template_rendering_fallback():
@@ -125,8 +126,8 @@ def test_cold_emailer_dry_run_mode():
     assert "[DRY-RUN]" in message
     assert "alex@texasliving.com" in message
     assert "https://hamzha.dev" in email_content
-    assert "sample preview draft" in email_content
     assert "Would it be alright if I send over a quick 30-second preview link for your brand, or are you all set right now?" in email_content
+    assert "sample preview draft" not in email_content
 
 def test_cold_emailer_rate_limiter():
     emailer = ColdEmailer(dry_run=True, max_daily_emails=2)
