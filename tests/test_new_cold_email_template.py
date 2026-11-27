@@ -10,9 +10,8 @@ def test_cold_email_new_high_converting_template():
         portfolio_url="https://sajjad-wali-portfolio.vercel.app/"
     )
 
-    # 1. Subject validation
-    assert "Patna" in subject
-    assert "Aarif" in subject
+    # 1. Subject validation (New high-converting conversational format)
+    assert subject == "Aarif, quick question about your Patna listings"
 
     # 1b. Natural opening hook validation
     assert "I came across your profile in Patna and really liked your property posts and listings." in body
@@ -25,14 +24,14 @@ def test_cold_email_new_high_converting_template():
     # 3. Customization by brand, colors, photos, name
     assert "tailored to your brand, colors, photos, and name" in body
 
-    # 4. Zero-risk, spam-free sample preview offer
+    # 4. Zero-risk, spam-free sample preview offer with low-pressure CTA
     assert "sample preview draft" in body
     assert "If you like it, we can talk; if not, no problem at all." in body
-    assert "Open to seeing a quick preview this week?" in body
+    assert "Would it be alright if I send over a quick 30-second preview link for your brand, or are you all set right now?" in body
 
     # 5. Anti-spam check: Must NOT contain the spam trigger word "free"
     words = [w.strip(".,!?\"'").lower() for w in body.split()]
     assert "free" not in words
 
-    # 6. Length check: Must be crisp and under 135 words total
-    assert len(words) <= 135
+    # 6. Length check: Must be crisp and under 150 words total
+    assert len(words) <= 150

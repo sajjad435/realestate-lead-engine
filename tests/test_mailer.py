@@ -22,7 +22,7 @@ def test_email_template_rendering_standard_pitch_from_screenshot():
     assert "tailored to your brand, colors, photos, and name" in rendered_body
     assert "sample preview draft" in rendered_body
     assert "If you like it, we can talk; if not, no problem at all." in rendered_body
-    assert "Open to seeing a quick preview this week?" in rendered_body
+    assert "Would it be alright if I send over a quick 30-second preview link for your brand, or are you all set right now?" in rendered_body
     assert "Portfolio: https://sajjad-wali-portfolio.vercel.app/" in rendered_body
     assert "Sajjad Wali" in rendered_body
     assert "Web Developer & Real Estate Web Consultant" in rendered_body
@@ -47,7 +47,7 @@ def test_email_template_ignores_website_preview_url_when_feature_stopped():
     assert "Live Website Preview:" not in rendered_body
     assert "https://sarah-jenkins-realty.vercel.app" not in rendered_body
     assert "sample preview draft" in rendered_body
-    assert "Open to seeing a quick preview this week?" in rendered_body
+    assert "Would it be alright if I send over a quick 30-second preview link for your brand, or are you all set right now?" in rendered_body
 
 def test_email_template_rendering_fallback():
     lead = Lead(
@@ -126,7 +126,7 @@ def test_cold_emailer_dry_run_mode():
     assert "alex@texasliving.com" in message
     assert "https://hamzha.dev" in email_content
     assert "sample preview draft" in email_content
-    assert "Open to seeing a quick preview this week?" in email_content
+    assert "Would it be alright if I send over a quick 30-second preview link for your brand, or are you all set right now?" in email_content
 
 def test_cold_emailer_rate_limiter():
     emailer = ColdEmailer(dry_run=True, max_daily_emails=2)
@@ -153,8 +153,8 @@ def test_email_template_uses_explicit_custom_hook():
     )
     subject, body = EmailTemplate.render(lead=lead, sender_name="Sajjad Wali")
     assert "how you showcase your local property tours" in body
-    # Size constraint: Must be crisp and compact, matching default size (<= 140 words)
-    assert len(body.split()) <= 140
+    # Size constraint: Must be crisp and compact, matching default size (<= 155 words)
+    assert len(body.split()) <= 155
 
 def test_email_template_generates_rating_hook_for_google_maps():
     lead = Lead(
@@ -167,7 +167,7 @@ def test_email_template_generates_rating_hook_for_google_maps():
     )
     subject, body = EmailTemplate.render(lead=lead, sender_name="Sajjad Wali")
     assert "4.9" in body
-    assert len(body.split()) <= 140
+    assert len(body.split()) <= 155
 
 def test_email_template_generates_instagram_social_hook_from_snippet():
     lead = Lead(
@@ -179,7 +179,7 @@ def test_email_template_generates_instagram_social_hook_from_snippet():
     )
     subject, body = EmailTemplate.render(lead=lead, sender_name="Sajjad Wali")
     assert "waterfront" in body.lower() or "tour" in body.lower() or "relocation" in body.lower()
-    assert len(body.split()) <= 140
+    assert len(body.split()) <= 155
 
 def test_email_template_generates_facebook_agency_hook():
     lead = Lead(
@@ -190,5 +190,5 @@ def test_email_template_generates_facebook_agency_hook():
     )
     subject, body = EmailTemplate.render(lead=lead, sender_name="Sajjad Wali")
     assert "Premier Realty Partners" in body
-    assert len(body.split()) <= 140
+    assert len(body.split()) <= 155
 

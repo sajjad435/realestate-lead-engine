@@ -46,7 +46,7 @@ I build custom realtor websites tailored to your brand, colors, photos, and name
 
 I'd love to put together a sample preview draft for you. If you like it, we can talk; if not, no problem at all.
 
-Open to seeing a quick preview this week?
+Would it be alright if I send over a quick 30-second preview link for your brand, or are you all set right now?
 
 Best regards,
 
@@ -61,7 +61,7 @@ Just floating this back to the top of your inbox in case it got buried under you
 
 I'd still love to share that quick sample website preview tailored for {city} buyers if you're open to taking a look.
 
-Would you be open to checking out a quick preview draft?
+Would it be alright if I send over that quick preview link, or are you already all set?
 
 Best regards,
 
@@ -247,10 +247,10 @@ Portfolio: {portfolio_url}
         
         if salutation_name:
             greeting = f"Hi {salutation_name},"
-            subject = f"Quick question regarding {city_display} real estate listings - {salutation_name}"
+            subject = f"{salutation_name}, quick question about your {city_display} listings"
         else:
             greeting = "Hi there,"
-            subject = f"Quick question regarding {city_display} real estate listings"
+            subject = f"quick question about your {city_display} listings"
 
         hook = cls.generate_personalized_hook(lead)
 
@@ -293,9 +293,9 @@ Portfolio: {portfolio_url}
         if orig_subject:
             subject = orig_subject if orig_subject.startswith("Re: ") else f"Re: {orig_subject}"
         elif salutation_name:
-            subject = f"Re: Quick question regarding {city_display} real estate listings - {salutation_name}"
+            subject = f"Re: {salutation_name}, quick question about your {city_display} listings"
         else:
-            subject = f"Re: Quick question regarding {city_display} real estate listings"
+            subject = f"Re: quick question about your {city_display} listings"
 
         greeting = f"Hi {salutation_name}," if salutation_name else "Hi there,"
         preview_url = lead.website_preview_url or portfolio_url

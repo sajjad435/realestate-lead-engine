@@ -20,7 +20,7 @@ def test_name_cleaner_prevents_city_name_as_first_name():
     assert "- Tampa" not in subject
     # Must extract Eddie from eddie.santiago
     assert "Hi Eddie" in body
-    assert "- Eddie" in subject
+    assert subject.startswith("Eddie, quick question about your")
 
 def test_name_cleaner_extracts_name_from_dotted_email():
     lead = Lead(
@@ -31,7 +31,7 @@ def test_name_cleaner_extracts_name_from_dotted_email():
     )
     subject, body = EmailTemplate.render(lead)
     assert "Hi Charles" in body
-    assert "- Charles" in subject
+    assert subject.startswith("Charles, quick question about your")
 
 def test_name_cleaner_handles_real_person_name():
     lead = Lead(
@@ -42,7 +42,7 @@ def test_name_cleaner_handles_real_person_name():
     )
     subject, body = EmailTemplate.render(lead)
     assert "Hi Sophia" in body
-    assert "- Sophia" in subject
+    assert subject.startswith("Sophia, quick question about your")
 
 def test_name_cleaner_generic_fallback_when_no_name_found():
     lead = Lead(
@@ -54,7 +54,7 @@ def test_name_cleaner_generic_fallback_when_no_name_found():
     subject, body = EmailTemplate.render(lead)
     assert "Hi there," in body
     # Subject should not have trailing hyphen or city name
-    assert subject == "Quick question regarding Tampa real estate listings"
+    assert subject == "quick question about your Tampa listings"
 
 def test_name_cleaner_handles_concatenated_instagram_handles():
     # Exact case 1 from user screenshot: Megan Khoury
@@ -68,7 +68,7 @@ def test_name_cleaner_handles_concatenated_instagram_handles():
     assert "Hi Megan," in body1
     assert "Megankhoury" not in body1
     assert "Megankhoury" not in subject1
-    assert "- Megan" in subject1
+    assert subject1.startswith("Megan, quick question about your")
 
     # Exact case 2 from user screenshot: Nikki Sells
     lead2 = Lead(
@@ -81,7 +81,7 @@ def test_name_cleaner_handles_concatenated_instagram_handles():
     assert "Hi Nikki," in body2
     assert "Nikkisells" not in body2
     assert "Nikkisells" not in subject2
-    assert "- Nikki" in subject2
+    assert subject2.startswith("Nikki, quick question about your")
 
 def test_name_cleaner_prevents_long_slug_when_no_clean_name():
     # Long mashup agency handle with generic email should fall back safely to "Hi there,"
@@ -95,7 +95,7 @@ def test_name_cleaner_prevents_long_slug_when_no_clean_name():
     assert "Hi there," in body
     assert "Naplesluxurylistingsgroup" not in body
     assert "Naplesluxurylistingsgroup" not in subject
-    assert subject == "Quick question regarding Naples real estate listings"
+    assert subject == "quick question about your Naples listings"
 
 def test_name_cleaner_extracts_from_underscored_email():
     lead = Lead(
@@ -106,4 +106,4 @@ def test_name_cleaner_extracts_from_underscored_email():
     )
     subject, body = EmailTemplate.render(lead)
     assert "Hi Robert," in body
-    assert "- Robert" in subject
+    assert subject.startswith("Robert, quick question about your")
