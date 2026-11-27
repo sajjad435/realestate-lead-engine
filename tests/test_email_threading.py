@@ -209,3 +209,35 @@ def test_db_sync_message_id_from_imap_mock(tmp_path):
         assert db.get_message_id_for_email("imap_agent@realty.com") == "<imap.real.msg.999@gmail.com>"
 
 
+def test_pipeline_dry_run_attribute_and_imap_lookup_with_credentials(tmp_path):
+    db_file = tmp_path / "leads_dryrun_test.db"
+    csv_file = tmp_path / "locations.csv"
+    csv_file.write_text("city,state\nColumbus,OH\n", encoding="utf-8")
+    
+    db = LeadTrackerDB(str(db_file))
+    lead = Lead(name="Jane Doe", city="Columbus", email="janedoe@realtor.com")
+    db.record_lead_contacted(lead, email_content="Subject: Hi\n\nBody", message_id=None)
+    
+    pipeline = LeadAcquisitionPipeline(
+        csv_path=str(csv_file),
+        db_path=str(db_file),
+        dry_run=False,
+        sender_email="sajjad@gmail.com",
+        sender_password="secret_password",
+        sender_name="Sajjad Wali"
+    )
+    
+    # 1. Pipeline instance must have dry_run attribute
+    assert hasattr(pipeline, "dry_run")
+    assert pipeline.dry_run is False
+
+    # 2. When run_followups runs with sender credentials and dry_run=False,
+    # it must not throw AttributeError: 'LeadAcquisitionPipeline' object has no attribute 'dry_run'
+    with patch.object(pipeline.db, "sync_message_id_from_imap", return_value="<retrieved@gmail.com>") as mock_sync, \
+         patch.object(pipeline.emailer, "send_followup", return_value=(True, "Success", "Content")):
+        count = pipeline.run_followups(days_threshold=0, enforce_business_hours=False)
+        assert count == 1
+        mock_sync.assert_called_once_with("janedoe@realtor.com", "sajjad@gmail.com", "secret_password")
+
+
+

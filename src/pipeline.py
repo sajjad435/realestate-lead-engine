@@ -36,6 +36,7 @@ class LeadAcquisitionPipeline:
         self.csv_path = csv_path
         self.db_path = db_path
         self.pdf_path = pdf_path
+        self.dry_run = dry_run
         
         self.sheet_manager = SheetManager(csv_path=self.csv_path)
         self.db = LeadTrackerDB(db_path=self.db_path)
@@ -224,7 +225,7 @@ class LeadAcquisitionPipeline:
             original_msg_id = record.get("message_id") or getattr(lead, "message_id", None)
             if not original_msg_id or "initial@mail.com" in str(original_msg_id) or "thread.ref" in str(original_msg_id):
                 original_msg_id = self.db.get_message_id_for_email(lead.email)
-                if not original_msg_id and self.emailer.sender_email and self.emailer.sender_password and not self.dry_run:
+                if not original_msg_id and self.emailer.sender_email and self.emailer.sender_password and not getattr(self, "dry_run", self.emailer.dry_run):
                     original_msg_id = self.db.sync_message_id_from_imap(
                         lead.email,
                         self.emailer.sender_email,
